@@ -16,8 +16,6 @@ pub mod set_admin {
 
     pub fn set_admin(ctx: Context<SetAdmin>, new_admins: Vec<Pubkey>) -> Result<()> {
         let admin_data = &mut ctx.accounts.admin_data;
-  
-
         admin_data.admin = new_admins;
         Ok(())
     }
@@ -59,8 +57,6 @@ pub mod set_admin {
 
             admin_data.admin.shrink_to(new_admins.len());
         }
-
-
         admin_data.admin = new_admins;
         Ok(())
     }
