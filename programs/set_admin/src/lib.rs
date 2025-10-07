@@ -1,10 +1,11 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
-
-use anchor_lang::solana_program::program::invoke;
-use anchor_lang::solana_program::system_instruction;
+use anchor_lang::solana_program::{
+    bpf_loader_upgradeable::UpgradeableLoaderState,
+    program::invoke,
+    system_instruction,
+};
 #[cfg(not(feature = "mainnet"))]
-declare_id!("7amnwad53YNkd1simiDYvhQZ6T6ewYQX21AnMztFEd9Y");
+declare_id!("4qDPCxVnHZHGM8oSeKGDzhrfcsxivWGX1FNyt5CZV67W");
 
 #[program]
 pub mod set_admin {
@@ -14,6 +15,14 @@ pub mod set_admin {
     }
 
     pub fn set_admin(ctx: Context<SetAdmin>, new_admins: Vec<Pubkey>) -> Result<()> {
+        let admin_data = &mut ctx.accounts.admin_data;
+  
+
+        admin_data.admin = new_admins;
+        Ok(())
+    }
+
+    pub fn set_admin_manual(ctx: Context<SetAdmin>, new_admins: Vec<Pubkey>) -> Result<()> {
         let admin_data = &mut ctx.accounts.admin_data;
         let current_lamports = admin_data.to_account_info().lamports();
 
@@ -51,7 +60,23 @@ pub mod set_admin {
             admin_data.admin.shrink_to(new_admins.len());
         }
 
+
         admin_data.admin = new_admins;
+        Ok(())
+    }
+
+    pub fn extend_account(ctx: Context<ExtendAccount>, additional_datas: Vec<u128>) -> Result<()> {
+        let admin_data = &mut ctx.accounts.admin_data.to_account_info();
+
+        // Find where existing data ends
+        let existing_size = admin_data.data_len() - (additional_datas.len() * 16);
+
+        let mut offset = existing_size;
+        for additional_data in additional_datas {
+            let bytes = additional_data.to_le_bytes();
+            admin_data.try_borrow_mut_data()?[offset..offset + bytes.len()].copy_from_slice(&bytes);
+            offset += bytes.len();
+        }
         Ok(())
     }
 
@@ -63,7 +88,7 @@ pub struct Initialize<'info> {
         init,
         payer = user,
         space = AdminData::size(0),
-        seeds = [b"admin_data_7"],
+        seeds = [b"admin_data_test"],
         bump,
     )]
     pub admin_data: Account<'info, AdminData>,
@@ -77,7 +102,7 @@ pub struct Initialize<'info> {
 #[instruction(new_admins: Vec<Pubkey>)]
 pub struct SetAdmin<'info> {
     #[account(mut,
-        seeds = [b"admin_data_7"],
+        seeds = [b"admin_data_test"],
         bump,
         realloc = AdminData::size(new_admins.len()),
         realloc::payer = user,
@@ -92,6 +117,30 @@ pub struct SetAdmin<'info> {
     )]
     pub user: Signer<'info>,
     /// CHECK: This is a derived account and its validity is ensured by the program logic.
+    #[account(constraint = program_data.key() == get_program_data_key(&id()) @ ErrorCode::InvalidProgramDataAccount)]
+    pub program_data: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(additional_datas: Vec<u128>)]
+pub struct ExtendAccount<'info> {
+    #[account(mut,
+        seeds = [b"admin_data_test"],
+        bump,
+        realloc = admin_data.to_account_info().data_len() + (additional_datas.len() * 16),
+        realloc::payer = user,
+        realloc::zero = false,
+    )]
+    pub admin_data: Account<'info, AdminData>,
+    /// CHECK: This is a derived account and its validity is ensured by the program logic.
+    #[account(
+        mut,
+        constraint = user.key() == get_authority_account(&program_data).unwrap() @ ErrorCode::Unauthorized
+    )]
+    pub user: Signer<'info>,
+    /// CHECK: This is a derived account and its validity is ensured by the program logic.
+    #[account(constraint = program_data.key() == get_program_data_key(&id()) @ ErrorCode::InvalidProgramDataAccount)]
     pub program_data: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
@@ -128,6 +177,12 @@ fn get_authority_account<'info>(program_id: &AccountInfo<'info>) -> Option<Pubke
         UpgradeableLoaderState::ProgramData { slot: _, upgrade_authority_address: None } => None,
         _ => None,
     }
+}
 
-    
+fn get_program_data_key(program_id: &Pubkey) -> Pubkey {
+    let (program_data_key, _) = Pubkey::find_program_address(
+        &[program_id.as_ref()],
+        &anchor_lang::solana_program::bpf_loader_upgradeable::id(),
+    );
+    program_data_key
 }

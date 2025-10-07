@@ -1,16 +1,17 @@
 import * as anchor from "@coral-xyz/anchor";
 import { PROGRAM } from "./constants";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
+import BN from 'bn.js';
 
-export async function setAdmin(
+export async function extendAccount(
     connection: Connection,
     admin: PublicKey,
-    newAdmins: PublicKey[],
+    additionalData: BN[],
     payer: Keypair,
     program_data: PublicKey
 ) {
     const tx = await PROGRAM.methods
-        .setAdmin(newAdmins)
+        .extendAccount(additionalData)
         .accounts({
             user: payer.publicKey,
             adminData: admin,

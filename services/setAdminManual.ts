@@ -2,15 +2,15 @@ import * as anchor from "@coral-xyz/anchor";
 import { PROGRAM } from "./constants";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 
-export async function setAdmin(
+export async function setAdminManual(
     connection: Connection,
     admin: PublicKey,
-    newAdmins: PublicKey[],
+    new_admins: PublicKey[],
     payer: Keypair,
     program_data: PublicKey
 ) {
     const tx = await PROGRAM.methods
-        .setAdmin(newAdmins)
+        .setAdminManual(new_admins)
         .accounts({
             user: payer.publicKey,
             adminData: admin,
