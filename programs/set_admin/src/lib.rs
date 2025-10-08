@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs, deprecated)]
+
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{
     bpf_loader_upgradeable::UpgradeableLoaderState,
